@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import CORS_ORIGINS, FRONTEND_DIST
 from .db import init_db
-from .routers import calendar, shifts
+from .routers import calendar, imports, shifts
 from .seed import seed_defaults
 
 
@@ -36,6 +36,7 @@ app.add_middleware(
 
 app.include_router(shifts.router)
 app.include_router(calendar.router)
+app.include_router(imports.router)
 
 
 @app.get("/api/health", tags=["meta"])

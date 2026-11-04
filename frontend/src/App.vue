@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import RosterGrid from './components/RosterGrid.vue'
+import ImportDialog from './components/ImportDialog.vue'
 import { api } from './api/client.js'
 import { daysOfMonth, monthLabel, shiftRange } from './utils/date.js'
 
@@ -15,6 +16,7 @@ const loading = ref(false)
 const error = ref('')
 const teamToken = ref(localStorage.getItem('ics-roster-team-token') || '')
 const newPersonName = ref('')
+const showImport = ref(false)
 
 const days = computed(() => daysOfMonth(year.value, month.value))
 const label = computed(() => monthLabel(year.value, month.value))
@@ -117,6 +119,7 @@ onMounted(loadAll)
         <span class="month-label">{{ label }}</span>
         <button @click="month === 12 ? ((year += 1), (month = 1)) : (month += 1)">›</button>
         <button class="ghost" @click="loadAll">刷新</button>
+        <button @click="showImport = true">导入 ICS</button>
       </div>
       <div class="feed">
         <input v-model="teamToken" placeholder="团队订阅 token" @change="saveTeamToken" />
@@ -174,5 +177,13 @@ onMounted(loadAll)
         </p>
       </main>
     </div>
+
+    <ImportDialog
+      v-if="showImport"
+      :persons="persons"
+      :shift-types="shiftTypes"
+      @close="showImport = false"
+      @imported="loadAll"
+    />
   </div>
 </template>

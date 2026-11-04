@@ -8,6 +8,7 @@
 ## 特性
 
 - **多人排班看板**：人员为行、日期为列的月视图，点格子选班次，颜色区分早班 / 晚班 / 夜班 / 休息
+- **导入已有 ICS**：上传历史 `.ics` 排班文件，按「标题 + 时段」分组后逐组指定人员与班次，解析结果直接入库并进入可视化看板
 - **ICS 订阅**：团队整表订阅 + 单人订阅，跨天班次（晚班）正确处理 `DTEND`
 - **批量上传接口**：外部排班算法生成结果后，一次 `POST /api/shifts/bulk` 落库，同人同天自动覆盖
 - **轻量部署**：Vue3 + FastAPI + SQLite，单容器（约 200 MB）+ 一个数据卷即可跑在 Linux 上
@@ -34,8 +35,11 @@ ics-roster/
 │  │  ├─ schemas.py         # 请求响应模型
 │  │  ├─ routers/
 │  │  │  ├─ shifts.py       # 人员、班次类型、排班 CRUD
-│  │  │  └─ calendar.py     # ICS 订阅接口
-│  │  ├─ services/ics.py    # RFC 5545 ICS 生成（含折行、转义、VTIMEZONE）
+│  │  │  ├─ calendar.py     # ICS 订阅接口
+│  │  │  └─ imports.py      # ICS 导入（预览 + 落库）
+│  │  ├─ services/
+│  │  │  ├─ ics.py          # RFC 5545 ICS 生成（含折行、转义、VTIMEZONE）
+│  │  │  └─ ics_import.py   # ICS 解析与 RRULE 展开
 │  │  └─ seed.py            # 首次启动写入默认班次类型
 │  └─ requirements.txt
 ├─ frontend/                # Vue3 排班看板
@@ -91,6 +95,8 @@ cd frontend && npm run build   # 产物输出到 backend/static，由 FastAPI �
 | DELETE | `/api/shifts/{id}` | 删除排班 |
 | GET | `/api/calendar/team.ics?token=` | 团队整表 ICS 订阅 |
 | GET | `/api/calendar/person/{id}/{token}.ics` | 单人 ICS 订阅 |
+| POST | `/api/import/ics/preview` | 上传 ICS 解析预览（不落库） |
+| POST | `/api/import/ics/apply` | 按确认的映射导入落库 |
 
 批量上传示例：
 
@@ -116,6 +122,33 @@ curl -X POST http://127.0.0.1:8210/api/shifts/bulk \
 - 晚班等跨天班次的 `DTEND` 自动落到次日
 - `emit_to_calendar=false` 的班次（如休息）不写入日历
 - 未指定 `from` / `to` 时默认取「半年前 ~ 一年后」，便于长期订阅
+
+## 导入已有 ICS
+
+网页顶栏「导入 ICS」按钮，或直接调接口：
+
+```bash
+# 1) 预览：只解析，返回分组与建议映射
+curl -X POST http://127.0.0.1:8210/api/import/ics/preview \
+  -F 'files=@排班.ics'
+
+# 2) 落库：带上确认后的映射（group key -> 人员/班次）
+curl -X POST http://127.0.0.1:8210/api/import/ics/apply \
+  -F 'files=@排班.ics' \
+  --form-string 'mapping={"张三 早班|08:00-16:00":{"person_id":1,"shift_type_id":1}}'
+```
+
+解析约定：
+
+| 场景 | 处理方式 |
+| --- | --- |
+| 分组规则 | 按 `SUMMARY` + 时段（`08:00-16:00` / 全天）聚合，同一组只需指定一次映射 |
+| 人员识别 | 标题里含已有人员名则自动匹配（取最长匹配）；匹配不到可由前端指定已有人员或「新建人员」 |
+| 班次识别 | 标题含班次名优先，其次按起止时间精确匹配班次类型；全天事件默认落到「不写入日历」的类型（如休息） |
+| 重复规则 | `RRULE` 的 `FREQ=DAILY/WEEKLY/MONTHLY`，支持 `INTERVAL` / `COUNT` / `UNTIL` / `BYDAY` |
+| 时间写法 | `;TZID=`、`;VALUE=DATE`（全天）、`Z` 结尾的 UTC，统一换算到 `Asia/Shanghai` |
+| 幂等 | 同人同天已存在且班次相同则跳过；班次不同则覆盖 |
+| 安全 | 单文件 ≤ 8MB；单次展开上限 2000 条事件，防止畸形 RRULE |
 
 ## 部署（Linux + Docker）
 
