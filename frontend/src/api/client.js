@@ -61,6 +61,9 @@ export const api = {
   updatePerson: (id, payload) =>
     request(`/api/persons/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deactivatePerson: (id) => request(`/api/persons/${id}`, { method: 'DELETE' }),
+  // purge=true 会连同该成员的排班记录一起物理删除，不可恢复
+  deletePerson: (id, purge = true) =>
+    request(`/api/persons/${id}?purge=${purge ? 'true' : 'false'}`, { method: 'DELETE' }),
   rotateToken: (id) => request(`/api/persons/${id}/token`, { method: 'POST' }),
 
   // ---- 班次 / 排班 ----

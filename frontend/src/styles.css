@@ -21,6 +21,7 @@
   box-sizing: border-box;
 }
 
+
 body {
   margin: 0;
   background: var(--bg);
@@ -204,6 +205,22 @@ select:focus {
 .person-list li .link:hover {
   text-decoration: underline;
   background: none;
+}
+
+/* 侧栏「人员」标题 + 管理入口 */
+.side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 18px 0 8px;
+}
+
+.side-head h3 {
+  margin: 0;
+}
+
+.side-head:first-child {
+  margin-top: 0;
 }
 
 .type-list small,
@@ -483,6 +500,59 @@ button.icon:hover {
   font-size: 12px;
 }
 
+/* ---------------- 人员管理 ---------------- */
+
+.modal.narrow {
+  width: min(680px, 100%);
+}
+
+.member-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.member-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--panel-2);
+}
+
+.member-list li .pname {
+  font-weight: 600;
+}
+
+.member-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+button.btn-danger {
+  border-color: #fecaca;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+button.btn-danger:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+button.btn-danger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.error.inline {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+}
+
 .muted {
   color: var(--muted);
 }
@@ -736,6 +806,17 @@ input {
     font-size: 12px;
   }
 
+  /* 窄屏下成员管理每行换行，按钮单独一行右对齐 */
+  .member-list li {
+    flex-wrap: wrap;
+  }
+
+  .member-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+
   /* 窄屏下排班表更紧凑，人员列收窄并加阴影区分 */
   table.roster {
     font-size: 11px;
@@ -768,6 +849,7 @@ input {
     font-size: 11px;
     padding-bottom: 8px;
   }
+
 
   /* 班次选择器改为底部弹层，避免超出屏幕 */
   .picker {

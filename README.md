@@ -8,6 +8,7 @@
 ## 特性
 
 - **多人排班看板**：人员为行、日期为列的月视图，点格子选班次，颜色区分早班 / 晚班 / 夜班 / 休息
+- **人员管理**：侧栏可直接新增 / 删除成员，删除时二次确认并同步清除其排班，订阅地址立即失效
 - **导入 Excel 排班表**：直接吃「一人一行、一天一列」的月度排班表（早/晚/休 简称即可），自动识别表头、日期列与人员行
 - **导入已有 ICS**：上传历史 `.ics` 排班文件，按「标题 + 时段」分组后逐组指定人员与班次
 - **员工登录**：账号密码登录（HttpOnly Cookie 会话），未登录无法访问接口；日历订阅地址用独立 token，不需要登录
@@ -96,6 +97,7 @@ cd frontend && npm run build   # 产物输出到 backend/static，由 FastAPI �
 | POST | `/api/persons` | 新增人员 |
 | PUT | `/api/persons/{id}` | 修改人员 |
 | DELETE | `/api/persons/{id}` | 停用人员（软删除，保留历史排班） |
+| DELETE | `/api/persons/{id}?purge=true` | 彻底删除人员并级联清除其全部排班（不可恢复） |
 | POST | `/api/persons/{id}/token` | 轮换该人员的订阅 token |
 | GET | `/api/shift-types` | 班次类型列表 |
 | POST | `/api/shift-types` | 新增班次类型 |

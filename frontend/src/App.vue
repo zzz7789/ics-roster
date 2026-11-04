@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import RosterGrid from './components/RosterGrid.vue'
 import ImportDialog from './components/ImportDialog.vue'
+import PersonManageDialog from './components/PersonManageDialog.vue'
 import LoginView from './views/LoginView.vue'
 import { api } from './api/client.js'
 import { daysOfMonth, monthLabel, shiftRange } from './utils/date.js'
@@ -21,6 +22,7 @@ const error = ref('')
 const teamToken = ref(localStorage.getItem('ics-roster-team-token') || '')
 const newPersonName = ref('')
 const showImport = ref(false)
+const showManage = ref(false)
 
 const days = computed(() => daysOfMonth(year.value, month.value))
 const label = computed(() => monthLabel(year.value, month.value))
@@ -190,7 +192,10 @@ onMounted(async () => {
 
     <div class="body">
       <aside class="sidebar">
-        <h3>人员</h3>
+        <div class="side-head">
+          <h3>人员</h3>
+          <button class="ghost small-btn" @click="showManage = true">管理</button>
+        </div>
         <form class="add-person" @submit.prevent="addPerson">
           <input v-model="newPersonName" placeholder="姓名" />
           <button class="primary">添加</button>
@@ -241,6 +246,14 @@ onMounted(async () => {
       :shift-types="shiftTypes"
       @close="showImport = false"
       @imported="loadAll"
+    />
+
+    <PersonManageDialog
+      v-if="showManage"
+      :persons="persons"
+      :shifts="shifts"
+      @close="showManage = false"
+      @changed="loadAll"
     />
   </div>
 </template>

@@ -3,7 +3,7 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session, joinedload
 
 from ..db import get_db
@@ -55,12 +55,28 @@ def update_person(person_id: int, payload: PersonIn, db: Session = Depends(get_d
 
 
 @router.delete("/persons/{person_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_person(person_id: int, db: Session = Depends(get_db)):
-    person = db.get(Person, person_id)
-    if not person:
+def delete_person(
+    person_id: int,
+    purge: bool = Query(False, description="true 时物理删除，并级联清除该人员的全部排班"),
+    db: Session = Depends(get_db),
+):
+    """删除人员。
+
+    - 默认只停用（active=False），排班历史保留，订阅地址不可再访问。
+    - purge=true 时物理删除人员并连同其排班记录一起清空，不可恢复。
+    """
+    exists = db.scalar(select(Person.id).where(Person.id == person_id))
+    if exists is None:
         raise HTTPException(status_code=404, detail="人员不存在")
-    # 保留历史：只停用，不物理删除
-    person.active = False
+
+    if not purge:
+        db.execute(update(Person).where(Person.id == person_id).values(active=False))
+        db.commit()
+        return
+
+    # SQLite 默认不启用外键级联，这里显式清子表再删主表
+    db.execute(delete(Shift).where(Shift.person_id == person_id))
+    db.execute(delete(Person).where(Person.id == person_id))
     db.commit()
 
 

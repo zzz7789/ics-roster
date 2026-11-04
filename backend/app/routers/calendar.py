@@ -99,9 +99,9 @@ def person_feed(
     date_to: date | None = Query(None, alias="to"),
     db: Session = Depends(get_db),
 ):
-    """单人订阅地址，token 泄露可立即轮换。"""
+    """单人订阅地址，token 泄露可立即轮换；人员被停用/删除后立即失效。"""
     person = db.get(Person, person_id)
-    if not person or person.feed_token != feed_token:
+    if not person or not person.active or person.feed_token != feed_token:
         raise HTTPException(status_code=403, detail="订阅地址无效")
     shifts = _load_shifts(db, date_from, date_to, person_id, only_active=False)
     body = _render(shifts, multi_person=False)
