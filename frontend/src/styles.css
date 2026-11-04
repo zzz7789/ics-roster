@@ -21,6 +21,12 @@
   box-sizing: border-box;
 }
 
+html {
+  /* iOS 上避免横屏或系统字号设置导致页面整体放大 */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 
 body {
   margin: 0;
@@ -741,9 +747,8 @@ input {
   -webkit-tap-highlight-color: transparent;
 }
 
-.grid-wrap {
-  -webkit-overflow-scrolling: touch;
-}
+/* 现代 iOS 已默认惯性滚动；显式声明会新建层叠上下文，影响内部 fixed 定位 */
+
 
 @media (max-width: 860px) {
   .sidebar {
@@ -758,8 +763,8 @@ input {
 
   /* 顶栏：分两行，月份导航独占一行可左右排开 */
   .topbar {
-    padding: 10px 12px;
-    gap: 10px;
+    padding: calc(12px + env(safe-area-inset-top)) 14px 10px;
+    gap: 8px;
     align-items: stretch;
   }
 
@@ -792,19 +797,52 @@ input {
     min-width: 0;
   }
 
+  /* 团队订阅：输入框和按钮同一行，省掉一整行高度 */
   .feed {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .feed input {
-    width: 100%;
-    flex: 1 1 100%;
-    min-height: 40px;
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 38px;
   }
 
   .feed button {
-    flex: 1;
-    min-height: 40px;
+    flex: 0 0 auto;
+    min-height: 38px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  /* 手机端顶栏只留必要操作：团队订阅属于低频配置，挪到电脑上操作 */
+  .topbar .feed {
+    display: none;
+  }
+
+  /* 用户区收紧：只留两个按钮，右对齐 */
+  .user-box {
+    gap: 6px;
+    margin-left: auto;
+    justify-content: flex-end;
+  }
+
+  .user-name {
+    display: none;
+  }
+
+  .user-box .small-btn {
+    min-height: 32px;
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
+  /* iOS 聚焦 font-size < 16px 的输入框会自动放大整页，这里统一提到 16px */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
   }
 
   /* 主体：表格优先，人员/班次列表移到下方 */
@@ -814,7 +852,10 @@ input {
 
   .main {
     order: 1;
-    padding: 10px 12px 0;
+    /* 高度贴合内容，避免表格下方留下大片空白把侧栏推到底部 */
+    flex: 0 0 auto;
+    /* 上下都留点呼吸空间，底部避开 Safari 工具栏和小黑条 */
+    padding: 14px 14px calc(32px + env(safe-area-inset-bottom));
   }
 
   .sidebar {
@@ -850,8 +891,22 @@ input {
   }
 
   /* 窄屏下排班表更紧凑，人员列收窄并加阴影区分 */
+  .grid-wrap {
+    border-radius: 14px;
+  }
+
+  /* 行高加大，手指更容易点准 */
   table.roster {
     font-size: 11px;
+  }
+
+  table.roster td {
+    height: 44px;
+  }
+
+  .chip {
+    font-size: 11px;
+    padding: 3px 8px;
   }
 
   table.roster thead th {
@@ -939,6 +994,17 @@ input {
   .modal-foot {
     padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
     flex-wrap: wrap;
+  }
+
+  /* 添加到主屏幕后按独立 App 打开时的安全区 */
+  .topbar {
+    padding-top: calc(10px + env(safe-area-inset-top));
+    padding-left: calc(12px + env(safe-area-inset-left));
+    padding-right: calc(12px + env(safe-area-inset-right));
+  }
+
+  .sidebar {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
   }
 
   .modal-foot button {
@@ -1129,13 +1195,7 @@ button.block {
     border-radius: 12px;
   }
 
-  .user-box {
-    width: 100%;
-    justify-content: space-between;
-    border-top: 1px solid var(--border);
-    padding-top: 8px;
-  }
-
+  /* 用户区样式统一在前面的移动端断点里维护 */
   .small-btn {
     min-height: 36px;
     padding: 6px 14px;

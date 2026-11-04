@@ -94,25 +94,29 @@ function choose(shiftTypeId) {
       </tbody>
     </table>
 
-    <div
-      v-if="picking"
-      class="picker"
-      :style="{ left: `${picking.x}px`, top: `${picking.y}px` }"
-      @click.stop
-    >
-      <div class="picker-title">{{ picking.name }} · {{ picking.iso }}</div>
-      <button
-        v-for="type in shiftTypes"
-        :key="type.id"
-        class="picker-item"
-        @click="choose(type.id)"
+    <!-- Teleport 到 body：iOS 上 .grid-wrap 有横向滚动层叠上下文，
+         fixed 定位的选择器留在里面会被定位到表格内，表现为“点了没反应” -->
+    <Teleport to="body">
+      <div v-if="picking" class="picker-mask" @click="picking = null"></div>
+      <div
+        v-if="picking"
+        class="picker"
+        :style="{ left: `${picking.x}px`, top: `${picking.y}px` }"
+        @click.stop
       >
-        <span class="dot" :style="{ background: type.color }"></span>
-        {{ type.name }}
-        <small v-if="type.start_time">{{ type.start_time }}–{{ type.end_time }}</small>
-      </button>
-      <button class="picker-item clear" @click="choose(null)">清除</button>
-    </div>
-    <div v-if="picking" class="picker-mask" @click="picking = null"></div>
+        <div class="picker-title">{{ picking.name }} · {{ picking.iso }}</div>
+        <button
+          v-for="type in shiftTypes"
+          :key="type.id"
+          class="picker-item"
+          @click="choose(type.id)"
+        >
+          <span class="dot" :style="{ background: type.color }"></span>
+          {{ type.name }}
+          <small v-if="type.start_time">{{ type.start_time }}–{{ type.end_time }}</small>
+        </button>
+        <button class="picker-item clear" @click="choose(null)">清除</button>
+      </div>
+    </Teleport>
   </div>
 </template>
