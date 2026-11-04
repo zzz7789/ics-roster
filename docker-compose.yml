@@ -5,7 +5,8 @@ services:
     container_name: ics-roster
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      # 对外端口 21117，容器内仍监听 8000
+      - "21117:8000"
     environment:
       # 团队整表订阅 token，务必改掉
       ICS_ROSTER_TEAM_TOKEN: ${ICS_ROSTER_TEAM_TOKEN:-change-me-team-token}
