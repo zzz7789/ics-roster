@@ -1,0 +1,16 @@
+services:
+  ics-roster:
+    build: .
+    image: ics-roster:0.1
+    container_name: ics-roster
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # 团队整表订阅 token，务必改掉
+      ICS_ROSTER_TEAM_TOKEN: ${ICS_ROSTER_TEAM_TOKEN:-change-me-team-token}
+      # 同域部署时无需跨域，留空即可
+      ICS_ROSTER_CORS: ${ICS_ROSTER_CORS:-}
+      TZ: Asia/Shanghai
+    volumes:
+      - ./data:/data
