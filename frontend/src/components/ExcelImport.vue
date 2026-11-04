@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { api } from '../api/client.js'
 
 const props = defineProps({
@@ -12,6 +12,9 @@ const step = ref('pick')
 const files = ref([])
 const preview = ref(null)
 const shiftMap = ref({})
+// 预览里每个人是否导入，name -> bool
+const selected = ref({})
+const headBox = ref(null)
 const year = ref(0)
 const month = ref(1)
 const busy = ref(false)
@@ -32,6 +35,26 @@ const totalDays = computed(() =>
     0,
   ),
 )
+
+const firstPeople = computed(() => firstSheet.value?.people || [])
+const selectedPeople = computed(() => firstPeople.value.filter((p) => selected.value[p.name]))
+const selectedDays = computed(() =>
+  selectedPeople.value.reduce((sum, p) => sum + p.day_count, 0),
+)
+const allSelected = computed(
+  () => firstPeople.value.length > 0 && selectedPeople.value.length === firstPeople.value.length,
+)
+const someSelected = computed(
+  () => selectedPeople.value.length > 0 && selectedPeople.value.length < firstPeople.value.length,
+)
+
+watch([allSelected, someSelected], () => {
+  if (headBox.value) headBox.value.indeterminate = !allSelected.value && someSelected.value
+})
+
+function toggleAll(next) {
+  for (const person of firstPeople.value) selected.value[person.name] = next
+}
 
 function pickFiles(event) {
   files.value = Array.from(event.target.files || [])
@@ -54,6 +77,12 @@ async function doPreview() {
       }
     }
     shiftMap.value = merged
+    // 默认全选，用户可取消勾选不想导入的人
+    const picked = {}
+    for (const sheet of data.sheets) {
+      for (const person of sheet.people) picked[person.name] = true
+    }
+    selected.value = picked
     year.value = data.sheets[0].year
     month.value = data.sheets[0].month
     step.value = 'map'
@@ -72,7 +101,12 @@ async function doApply() {
       shift_map: Object.fromEntries(
         Object.entries(shiftMap.value).filter(([, typeId]) => !!typeId),
       ),
-      person_map: {},
+      // 取消勾选的人整行不导入；勾选的按姓名自动匹配/新建
+      person_map: Object.fromEntries(
+        Object.entries(selected.value)
+          .filter(([, on]) => !on)
+          .map(([name]) => [name, { skip: true }]),
+      ),
       year: Number(year.value),
       month: Number(month.value),
     }
@@ -126,6 +160,9 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
         </span>
         <span>人员 <b>{{ firstSheet.people.length }}</b> 人</span>
         <span>共 <b>{{ totalDays }}</b> 个班次</span>
+        <span v-if="selectedPeople.length !== firstPeople.length" class="badge ok">
+          已选 {{ selectedPeople.length }} 人 / {{ selectedDays }} 个班次
+        </span>
       </div>
 
       <div class="map-block">
@@ -145,11 +182,20 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
       </div>
 
       <div class="map-block">
-        <h4>人员（同名自动复用，不存在则新建）</h4>
+        <h4>人员（同名自动复用，不存在则新建；取消勾选的整行不导入）</h4>
         <div class="people-scroll">
           <table class="map-table">
             <thead>
               <tr>
+                <th class="pick-col">
+                  <input
+                    ref="headBox"
+                    type="checkbox"
+                    :checked="allSelected"
+                    title="全选 / 全不选"
+                    @change="toggleAll($event.target.checked)"
+                  />
+                </th>
                 <th>姓名</th>
                 <th>状态</th>
                 <th>天数</th>
@@ -157,7 +203,14 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
               </tr>
             </thead>
             <tbody>
-              <tr v-for="person in firstSheet.people" :key="person.name">
+              <tr
+                v-for="person in firstSheet.people"
+                :key="person.name"
+                :class="{ 'row-off': !selected[person.name] }"
+              >
+                <td class="pick-col">
+                  <input v-model="selected[person.name]" type="checkbox" />
+                </td>
                 <td class="nowrap">{{ person.name }}</td>
                 <td class="nowrap">
                   <span v-if="person.person_id" class="badge ok">已有</span>

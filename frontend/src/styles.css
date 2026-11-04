@@ -622,6 +622,23 @@ button.btn-danger:disabled {
   max-width: 150px;
 }
 
+/* 预览表格里的勾选列：只放一个 checkbox */
+.map-table .pick-col {
+  width: 34px;
+  padding: 6px 4px;
+  text-align: center;
+}
+
+.map-table .pick-col input {
+  margin: 0;
+  cursor: pointer;
+}
+
+/* 未勾选的行置灰，仍可点击恢复 */
+.map-table tr.row-off td {
+  opacity: 0.45;
+}
+
 .new-name {
   display: block;
   margin-top: 4px;

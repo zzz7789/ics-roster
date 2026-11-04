@@ -218,6 +218,10 @@ def apply_ics(
             skipped += 1
             unknown_keys.add(key)
             continue
+        if decision.get("skip"):
+            # 前端预览里未勾选的分组，明确标记跳过，不算「未指定映射」
+            skipped += 1
+            continue
 
         person = _resolve_person(db, decision, created_by_person)
         type_id = decision.get("shift_type_id")
@@ -419,6 +423,10 @@ def apply_excel(
 
         for row in parsed.people:
             decision = person_map.get(row.name) or {}
+            if decision.get("skip"):
+                # 预览里未勾选的人员，整行不导入
+                skipped += len(row.cells)
+                continue
             person, was_created = _resolve_excel_person(db, row.name, decision, person_cache)
             if person is None:
                 skipped += len(row.cells)
