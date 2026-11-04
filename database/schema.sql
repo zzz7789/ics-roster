@@ -40,9 +40,8 @@ CREATE INDEX IF NOT EXISTS ix_shift_work_date ON shift (work_date);
 -- 默认班次类型（与 backend/app/seed.py 保持一致）
 INSERT OR IGNORE INTO shift_type (code, name, start_time, end_time, ends_next_day, emit_to_calendar, color)
 VALUES
-    ('morning', '早班', '08:00', '16:00', 0, 1, '#f5a524'),
-    ('evening', '晚班', '16:00', '00:00', 1, 1, '#7c5cff'),
-    ('night',   '夜班', '00:00', '08:00', 0, 1, '#3b4a6b'),
+    ('morning', '早班', '09:00', '17:00', 0, 1, '#f5a524'),
+    ('evening', '晚班', '17:00', '00:00', 1, 1, '#7c5cff'),
     ('rest',    '休息', '',      '',      0, 0, '#94a3b8');
 
 CREATE TABLE IF NOT EXISTS user (

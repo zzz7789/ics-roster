@@ -16,8 +16,8 @@ DEFAULT_TYPES = [
     dict(
         code="morning",
         name="早班",
-        start_time="08:00",
-        end_time="16:00",
+        start_time="09:00",
+        end_time="17:00",
         ends_next_day=False,
         emit_to_calendar=True,
         color="#f5a524",
@@ -25,20 +25,11 @@ DEFAULT_TYPES = [
     dict(
         code="evening",
         name="晚班",
-        start_time="16:00",
+        start_time="17:00",
         end_time="00:00",
-        ends_next_day=True,
+        ends_next_day=True,  # 跨天到次日 00:00
         emit_to_calendar=True,
         color="#7c5cff",
-    ),
-    dict(
-        code="night",
-        name="夜班",
-        start_time="00:00",
-        end_time="08:00",
-        ends_next_day=False,
-        emit_to_calendar=True,
-        color="#3b4a6b",
     ),
     dict(
         code="rest",
@@ -46,7 +37,7 @@ DEFAULT_TYPES = [
         start_time="",
         end_time="",
         ends_next_day=False,
-        emit_to_calendar=False,
+        emit_to_calendar=False,  # 休息不进日历
         color="#94a3b8",
     ),
 ]
