@@ -3,6 +3,9 @@
 //   - 只订阅了一份（单人使用最常见）：直接用它，零配置
 //   - 订阅了多份：长按组件 →「编辑小组件」→ Parameter 填自己的名字（如「张敏」），
 //     也可以填完整日历名（如「张敏 排班」）
+// 脚本版本（排查界面会显示，用来确认手机上装的是哪一版）
+const WIDGET_VERSION = "v6"
+
 // 下面两项是脚本内兜底值，留空即可。
 const CALENDAR_TITLE = "" // 固定日历名，留空 = 自动查找
 const PERSON_NAME = "" // 团队日历里自己的名字，留空 = 用组件参数
@@ -16,6 +19,9 @@ const SHIFT_KEYWORDS = [
 let calendarEvents = []
 let calendarIssue = null
 let calendarTitle = "" // 实际选中的日历名，用来判断是不是团队日历
+let calendarNames = [] // 系统里能看到的日历名，读写失败时用于排查
+let calendarError = "" // 读取日历时的异常信息
+let calendarApi = "" // 成功枚举日历用到的 Scriptable API 名
 const widgetParameter =
   typeof args !== "undefined" && args && args.widgetParameter
     ? String(args.widgetParameter).trim()
@@ -106,18 +112,54 @@ function monthCounts(year, month) {
   return counts
 }
 
+// 按标题找日历：Scriptable 找不到时会抛异常（而不是返回 null），这里统一吞掉
+async function findCalendarByTitle(title) {
+  if (!title) return null
+  try {
+    return (await Calendar.forEventsByTitle(title)) || null
+  } catch (error) {
+    return null
+  }
+}
+
+// 用户可能只填了姓名（如「张敏」），自动补上 ics-roster 的「XXX 排班」命名
+async function findCalendarByHint(hint) {
+  if (!hint) return null
+  const candidates = [hint, `${hint} 排班`, `${hint}排班`]
+  for (const title of candidates) {
+    const calendar = await findCalendarByTitle(title)
+    if (calendar) return calendar
+  }
+  return null
+}
+
+// 枚举事件日历：Scriptable 不同版本可用 API 不同，逐个尝试
+// （旧版没有 Calendar.getAllCalendars，只有 Calendar.forEvents）
+function listEventCalendars() {
+  for (const api of ["forEvents", "getAllCalendars"]) {
+    const method = Calendar[api]
+    if (typeof method !== "function") continue
+    try {
+      const list = method.call(Calendar)
+      if (list && list.length) return { list: Array.from(list), api }
+    } catch (error) {
+      // 换下一个 API 再试
+    }
+  }
+  return { list: [], api: "" }
+}
+
 function pickCalendar(allCalendars) {
+  const rosters = allCalendars.filter(item => String(item.title || "").includes("排班"))
   if (titleHint) {
     const exact = allCalendars.find(item => String(item.title || "").trim() === titleHint)
     if (exact) return exact
-    return (
-      allCalendars.find(
-        item =>
-          String(item.title || "").includes(titleHint) && String(item.title || "").includes("排班")
-      ) || null
-    )
+
+    const matched = rosters.find(item => String(item.title || "").includes(titleHint))
+    if (matched) return matched
+
+    // 参数可能填的是姓名（团队日历场景），日历名里没有姓名，继续往下回退
   }
-  const rosters = allCalendars.filter(item => String(item.title || "").includes("排班"))
   return rosters.length > 0 ? rosters[0] : null
 }
 
@@ -364,17 +406,40 @@ function addCalendarIssue(widget) {
   const tip = needPerson
     ? "长按组件 → 编辑小组件 → Parameter 填你的名字"
     : calendarMissing
-      ? "请先在「日历」App 里订阅 ics-roster 的排班地址"
+      ? calendarApi
+        ? "日历里没有名字含「排班」的，请在 Parameter 填完整日历名"
+        : "请在 Parameter 填日历全名（日历 App 里看到的标题）"
       : "请在系统设置中允许 Scriptable 访问日历"
   addText(widget, tip, 12, new Color(COLOR.muted))
-  widget.addSpacer()
-  addText(widget, titleHint ? `寻找：${titleHint}` : "自动查找名字含「排班」的日历", 11, new Color(COLOR.faint))
+  widget.addSpacer(6)
+  addText(widget, WIDGET_VERSION, 9, new Color(COLOR.faint))
+  widget.addSpacer(2)
+
+  // 排查信息：能看到的日历名 / 具体报错 / 当前参数
+  if (calendarError) {
+    addText(widget, `错误：${calendarError}`, 9, new Color(COLOR.faint))
+  } else if (calendarNames.length > 0) {
+    addText(widget, `可见日历：${calendarNames.slice(0, 3).join("、")}`, 9, new Color(COLOR.faint))
+    widget.addSpacer(2)
+    addText(widget, `${calendarApi} · ${calendarNames.length} 个 · 参数：${titleHint || "空"}`, 9, new Color(COLOR.faint))
+  } else {
+    addText(widget, "未能枚举日历，请把 Parameter 填成日历全名", 9, new Color(COLOR.faint))
+  }
 }
 
 const today = atMidnight(new Date())
 const displayedMonth = displayedMonthForDate(today)
 try {
-  const scheduleCalendar = pickCalendar(Calendar.getAllCalendars())
+  // 参数填了名字时先按标题查（订阅日历是只读日历，不一定能被枚举到）；
+  // 只填姓名也能自动补成「姓名 排班」
+  let scheduleCalendar = await findCalendarByHint(titleHint)
+
+  const listed = listEventCalendars()
+  calendarApi = listed.api
+  calendarNames = listed.list.map(item => String(item.title || "")).filter(Boolean)
+
+  if (!scheduleCalendar) scheduleCalendar = pickCalendar(listed.list)
+
   if (!scheduleCalendar) {
     calendarIssue = "calendar-not-found"
   } else if (String(scheduleCalendar.title || "").includes("团队") && !nameHint) {
@@ -390,6 +455,7 @@ try {
   }
 } catch (error) {
   calendarIssue = "calendar-access-denied"
+  calendarError = String((error && error.message) || error)
 }
 
 const widget = new ListWidget()
