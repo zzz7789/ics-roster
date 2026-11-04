@@ -1,8 +1,8 @@
 // ==== 一般不用改这里 ====
 // 组件会自己在系统「日历」里找名字带「排班」的订阅日历：
 //   - 只订阅了一份（单人使用最常见）：直接用它，零配置
-//   - 订阅了多份：长按组件 →「编辑小组件」→ Parameter 填自己的名字（如「张敏」），
-//     也可以填完整日历名（如「张敏 排班」）
+//   - 订阅了多份：长按组件 →「编辑小组件」→ Parameter 填自己的名字（如「张三」），
+//     也可以填完整日历名（如「张三 排班」）
 // 脚本版本（排查界面会显示，用来确认手机上装的是哪一版）
 const WIDGET_VERSION = "v6"
 
@@ -10,7 +10,7 @@ const WIDGET_VERSION = "v6"
 const CALENDAR_TITLE = "" // 固定日历名，留空 = 自动查找
 const PERSON_NAME = "" // 团队日历里自己的名字，留空 = 用组件参数
 
-// 事件标题关键字 → 班次代码，命中即可（兼容「早班」和「张敏 早班」两种写法）
+// 事件标题关键字 → 班次代码，命中即可（兼容「早班」和「张三 早班」两种写法）
 const SHIFT_KEYWORDS = [
   { code: "早", words: ["早班"] },
   { code: "晚", words: ["晚班"] },
@@ -62,7 +62,7 @@ function daysBetween(left, right) {
 
 function codeOfEvent(item) {
   const title = String(item.title || "").trim()
-  // 单人日历的事件标题就是「早班」；团队日历才是「张敏 早班」，需要按姓名过滤
+  // 单人日历的事件标题就是「早班」；团队日历才是「张三 早班」，需要按姓名过滤
   if (calendarTitle.includes("团队") && nameHint && !title.includes(nameHint)) return null
   for (const entry of SHIFT_KEYWORDS) {
     if (entry.words.some(word => title.includes(word))) return entry.code
@@ -122,7 +122,7 @@ async function findCalendarByTitle(title) {
   }
 }
 
-// 用户可能只填了姓名（如「张敏」），自动补上 ics-roster 的「XXX 排班」命名
+// 用户可能只填了姓名（如「张三」），自动补上 ics-roster 的「XXX 排班」命名
 async function findCalendarByHint(hint) {
   if (!hint) return null
   const candidates = [hint, `${hint} 排班`, `${hint}排班`]
