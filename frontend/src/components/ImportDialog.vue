@@ -9,7 +9,8 @@ defineProps({
 })
 const emit = defineEmits(['close', 'imported'])
 
-const tab = ref('ics')
+// 默认走 Excel：日常排班表多为月度 xlsx
+const tab = ref('excel')
 const activeKey = ref(0)
 
 // 切换 tab 时重建子组件，避免残留上一次的状态
@@ -25,27 +26,27 @@ function switchTab(next) {
     <div class="modal">
       <header class="modal-head">
         <div class="tabs">
-          <button class="tab" :class="{ active: tab === 'ics' }" @click="switchTab('ics')">
-            导入 ICS
-          </button>
           <button class="tab" :class="{ active: tab === 'excel' }" @click="switchTab('excel')">
             导入 Excel
+          </button>
+          <button class="tab" :class="{ active: tab === 'ics' }" @click="switchTab('ics')">
+            导入 ICS
           </button>
         </div>
         <button class="icon" @click="emit('close')">×</button>
       </header>
 
-      <IcsImport
-        v-if="tab === 'ics'"
-        :key="`ics-${activeKey}`"
+      <ExcelImport
+        v-if="tab === 'excel'"
+        :key="`excel-${activeKey}`"
         :persons="persons"
         :shift-types="shiftTypes"
         @close="emit('close')"
         @imported="emit('imported')"
       />
-      <ExcelImport
+      <IcsImport
         v-else
-        :key="`excel-${activeKey}`"
+        :key="`ics-${activeKey}`"
         :persons="persons"
         :shift-types="shiftTypes"
         @close="emit('close')"
