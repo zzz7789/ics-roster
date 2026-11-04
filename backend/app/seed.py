@@ -4,6 +4,7 @@ import logging
 import secrets
 
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from .config import ADMIN_PASSWORD, ADMIN_USER
 from .db import SessionLocal
@@ -37,7 +38,7 @@ DEFAULT_TYPES = [
         start_time="",
         end_time="",
         ends_next_day=False,
-        emit_to_calendar=False,  # 休息不进日历
+        emit_to_calendar=True,  # 休息按全天事件写入日历
         color="#94a3b8",
     ),
 ]
@@ -46,9 +47,19 @@ DEFAULT_TYPES = [
 def seed_defaults() -> None:
     with SessionLocal() as db:
         if db.scalar(select(ShiftType.id).limit(1)):
+            _ensure_rest_emitted(db)
             return
         db.add_all(ShiftType(**item) for item in DEFAULT_TYPES)
         db.commit()
+
+
+def _ensure_rest_emitted(db: Session) -> None:
+    """老库里的「休息」原先不写日历，这里统一改为写入（全天事件）。"""
+    rest = db.scalar(select(ShiftType).where(ShiftType.code == "rest"))
+    if rest is not None and not rest.emit_to_calendar:
+        rest.emit_to_calendar = True
+        db.commit()
+        log.warning("休息班次已改为写入日历（全天事件）")
 
 
 def ensure_admin() -> None:

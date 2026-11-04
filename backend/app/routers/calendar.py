@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from ..config import TEAM_FEED_TOKEN
 from ..db import get_db
 from ..models import Person, Shift
-from ..services.ics import build_calendar, build_event, event_times
+from ..services.ics import build_all_day_event, build_calendar, build_event, event_times, is_all_day
 
 router = APIRouter(prefix="/api/calendar", tags=["calendar"])
 
@@ -47,10 +47,8 @@ def _load_shifts(
 def _render(shifts: list[Shift], multi_person: bool) -> str:
     events: list[list[str]] = []
     for shift in shifts:
-        times = event_times(shift.work_date, shift.shift_type)
-        if not times:
+        if not shift.shift_type.emit_to_calendar:
             continue
-        start, end = times
         summary = (
             f"{shift.person.name} {shift.shift_type.name}" if multi_person else shift.shift_type.name
         )
@@ -60,6 +58,26 @@ def _render(shifts: list[Shift], multi_person: bool) -> str:
         if multi_person:
             desc_parts.append(f"人员：{shift.person.name}（{shift.person.group_name or '默认组'}）")
         desc_parts.append(f"班次：{shift.shift_type.name}")
+        stamp = shift.updated_at or shift.created_at
+
+        # 休息这类没有时间段的班次输出为全天事件
+        if is_all_day(shift.shift_type):
+            events.append(
+                build_all_day_event(
+                    uid=f"shift-{shift.id}@ics-roster",
+                    summary=summary,
+                    day=shift.work_date,
+                    description="\n".join(desc_parts),
+                    color=shift.shift_type.color,
+                    stamp=stamp,
+                )
+            )
+            continue
+
+        times = event_times(shift.work_date, shift.shift_type)
+        if not times:
+            continue
+        start, end = times
         events.append(
             build_event(
                 uid=f"shift-{shift.id}@ics-roster",
@@ -68,7 +86,7 @@ def _render(shifts: list[Shift], multi_person: bool) -> str:
                 end=end,
                 description="\n".join(desc_parts),
                 color=shift.shift_type.color,
-                stamp=shift.updated_at or shift.created_at,
+                stamp=stamp,
             )
         )
     name = "团队排班" if multi_person else (shifts[0].person.name + " 排班" if shifts else "排班")

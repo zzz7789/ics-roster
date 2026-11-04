@@ -221,6 +221,7 @@ onMounted(async () => {
             <span class="dot" :style="{ background: type.color }"></span>
             {{ type.name }}
             <small v-if="type.start_time">{{ type.start_time }}–{{ type.end_time }}</small>
+            <small v-else-if="type.emit_to_calendar">全天</small>
             <small v-else>不写入日历</small>
           </li>
         </ul>

@@ -42,7 +42,7 @@ INSERT OR IGNORE INTO shift_type (code, name, start_time, end_time, ends_next_da
 VALUES
     ('morning', '早班', '09:00', '17:00', 0, 1, '#f5a524'),
     ('evening', '晚班', '17:00', '00:00', 1, 1, '#7c5cff'),
-    ('rest',    '休息', '',      '',      0, 0, '#94a3b8');
+    ('rest',    '休息', '',      '',      0, 1, '#94a3b8');
 
 CREATE TABLE IF NOT EXISTS user (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,

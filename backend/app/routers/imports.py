@@ -117,7 +117,10 @@ def _suggest_type(occ: Occurrence, types: list[ShiftType]) -> tuple[int | None, 
             return best.id, best.name
 
     if occ.all_day:
-        rest = next((t for t in types if not t.emit_to_calendar), None)
+        # 休息类：优先按 code=rest，其次按名字里带「休」
+        rest = next((t for t in types if t.code == "rest"), None) or next(
+            (t for t in types if "休" in t.name), None
+        )
         return (rest.id, rest.name) if rest else (None, None)
 
     start_hm, end_hm = occ.start.strftime("%H:%M"), occ.end.strftime("%H:%M")

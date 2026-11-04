@@ -83,6 +83,40 @@ def build_event(
     return lines
 
 
+def is_all_day(shift_type: ShiftType) -> bool:
+    """没有起止时间的班次（如休息）按全天事件输出。"""
+    return not shift_type.start_time and not shift_type.end_time
+
+
+def build_all_day_event(
+    *,
+    uid: str,
+    summary: str,
+    day: date,
+    description: str = "",
+    color: str = "",
+    stamp: datetime | None = None,
+) -> list[str]:
+    """全天事件：DTSTART/DTEND 用 VALUE=DATE，DTEND 为次日（RFC 5545 约定，右开区间）。"""
+    stamp = stamp or datetime.now(tz=TZ)
+    lines = [
+        "BEGIN:VEVENT",
+        f"UID:{uid}",
+        f"DTSTAMP:{_dt(stamp, utc=True)}",
+        f"DTSTART;VALUE=DATE:{day:%Y%m%d}",
+        f"DTEND;VALUE=DATE:{day + timedelta(days=1):%Y%m%d}",
+        f"SUMMARY:{_escape(summary)}",
+    ]
+    if description:
+        lines.append(f"DESCRIPTION:{_escape(description)}")
+    if color:
+        lines.append(f"COLOR:{color}")
+    # 休息这类全天事项不占用「忙碌」状态
+    lines.append("TRANSP:TRANSPARENT")
+    lines.append("END:VEVENT")
+    return lines
+
+
 def event_times(work_date: date, shift_type: ShiftType) -> tuple[datetime, datetime] | None:
     """把「日期 + 班次类型」换算成起止时间；休息类返回 None。"""
     if not shift_type.emit_to_calendar:
