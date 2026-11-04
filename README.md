@@ -13,6 +13,7 @@
 - **导入已有 ICS**：上传历史 `.ics` 排班文件，按「标题 + 时段」分组后逐组指定人员与班次
 - **员工登录**：账号密码登录（HttpOnly Cookie 会话），未登录无法访问接口；日历订阅地址用独立 token，不需要登录
 - **手机端可用**：窄屏自动重排，排班表横向滚动 + 首列冻结，班次选择改为底部弹层
+- **iOS 桌面小组件**：`widget/` 下的 Scriptable 组件，订阅日历后在桌面看今天 / 本周 / 整月排班
 - **ICS 订阅**：团队整表订阅 + 单人订阅，跨天班次（晚班）正确处理 `DTEND`
 - **批量上传接口**：外部排班算法生成结果后，一次 `POST /api/shifts/bulk` 落库，同人同天自动覆盖
 - **轻量部署**：Vue3 + FastAPI + SQLite，单容器（约 200 MB）+ 一个数据卷即可跑在 Linux 上
@@ -51,6 +52,7 @@ ics-roster/
 │  │  └─ seed.py            # 默认班次类型 + 管理员账号初始化
 │  └─ requirements.txt
 ├─ frontend/                # Vue3 排班看板
+├─ widget/                  # iOS Scriptable 桌面小组件（读订阅日历）
 ├─ database/schema.sql      # 参考 DDL
 ├─ docs/roadmap.md          # 待确认的业务边界
 ├─ Dockerfile
