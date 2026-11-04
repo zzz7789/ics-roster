@@ -5,6 +5,7 @@ import ImportDialog from './components/ImportDialog.vue'
 import PersonManageDialog from './components/PersonManageDialog.vue'
 import LoginView from './views/LoginView.vue'
 import { api } from './api/client.js'
+import { copyToClipboard } from './utils/clipboard.js'
 import { daysOfMonth, monthLabel, shiftRange } from './utils/date.js'
 
 const today = new Date()
@@ -99,12 +100,12 @@ async function addPerson() {
 }
 
 async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text)
+  // 兼容 http 部署：安全上下文用 clipboard API，否则降级 execCommand
+  if (await copyToClipboard(text)) {
     alert('已复制到剪贴板')
-  } catch {
-    window.prompt('手动复制下面的地址：', text)
+    return
   }
+  window.prompt('手动复制下面的地址：', text)
 }
 
 function saveTeamToken() {

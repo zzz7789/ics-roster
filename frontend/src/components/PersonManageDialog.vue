@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { api } from '../api/client.js'
+import { copyToClipboard } from '../utils/clipboard.js'
 
 const props = defineProps({
   persons: { type: Array, required: true },
@@ -22,12 +23,11 @@ const rows = computed(() =>
 
 async function copyFeed(person) {
   const url = api.personFeedUrl(person)
-  try {
-    await navigator.clipboard.writeText(url)
+  if (await copyToClipboard(url)) {
     alert(`已复制「${person.name}」的订阅地址`)
-  } catch {
-    window.prompt('手动复制下面的地址：', url)
+    return
   }
+  window.prompt('手动复制下面的地址：', url)
 }
 
 async function rotate(person) {
