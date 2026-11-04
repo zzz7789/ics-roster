@@ -16,16 +16,28 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..deps import require_user
 from ..models import Person, Shift, ShiftType
-from ..schemas import ImportGroup, ImportPreviewOut, ImportApplyOut
+from ..schemas import (
+    ExcelApplyOut,
+    ExcelPersonOut,
+    ExcelPreviewOut,
+    ExcelSheetOut,
+    ImportApplyOut,
+    ImportGroup,
+    ImportPreviewOut,
+)
 from ..services.ics_import import (
     Occurrence,
     ParseResult,
     expand_event,
     parse_ics,
 )
+from ..services.xlsx_import import ExcelParseError, parse_xlsx
 
-router = APIRouter(prefix="/api/import", tags=["import"])
+router = APIRouter(
+    prefix="/api/import", tags=["import"], dependencies=[Depends(require_user)]
+)
 
 MAX_FILE_BYTES = 8 * 1024 * 1024
 DEFAULT_HORIZON_DAYS = 366
@@ -281,3 +293,207 @@ PALETTE = ["#4f8cff", "#22c55e", "#f5a524", "#ef4444", "#7c5cff", "#06b6d4", "#e
 
 def _pick_color(index: int) -> str:
     return PALETTE[index % len(PALETTE)]
+
+
+# ----------------------------- Excel 导入 -----------------------------
+
+MAX_EXCEL_BYTES = 16 * 1024 * 1024
+
+
+def _suggest_type_for_label(label: str, types: list[ShiftType]) -> int | None:
+    """把「早」「休」这类单元格文字映射到班次类型。"""
+    text = label.strip()
+    if not text:
+        return None
+    for candidate in types:
+        if candidate.name == text:
+            return candidate.id
+    for candidate in types:
+        if candidate.name and (candidate.name in text or text in candidate.name):
+            return candidate.id
+    return None
+
+
+@router.post("/excel/preview", response_model=ExcelPreviewOut)
+def preview_excel(
+    files: list[UploadFile] = File(..., description="一个或多个 .xlsx 排班表"),
+    db: Session = Depends(get_db),
+):
+    """解析 Excel 排班表，返回年月、人员与班次标签的建议映射（不落库）。"""
+    active = list(db.scalars(select(Person).where(Person.active.is_(True))).all())
+    by_name = {p.name: p for p in active}
+    types = list(db.scalars(select(ShiftType)).all())
+
+    sheets: list[ExcelSheetOut] = []
+    warnings: list[str] = []
+    for upload in files:
+        filename = upload.filename or "未命名.xlsx"
+        raw = upload.file.read()
+        if len(raw) > MAX_EXCEL_BYTES:
+            warnings.append(f"{filename}：超过 16MB，已跳过")
+            continue
+        try:
+            parsed = parse_xlsx(raw, filename)
+        except ExcelParseError as exc:
+            warnings.append(f"{filename}：{exc}")
+            continue
+
+        people_out: list[ExcelPersonOut] = []
+        for row in parsed.people:
+            counts: dict[str, int] = {}
+            for label in row.cells.values():
+                counts[label] = counts.get(label, 0) + 1
+            matched = by_name.get(row.name)
+            people_out.append(
+                ExcelPersonOut(
+                    name=row.name,
+                    person_id=matched.id if matched else None,
+                    counts=counts,
+                    day_count=len(row.cells),
+                )
+            )
+
+        sheets.append(
+            ExcelSheetOut(
+                filename=filename,
+                sheet_name=parsed.sheet_name,
+                title=parsed.title,
+                year=parsed.year,
+                month=parsed.month,
+                date_matched=parsed.date_matched,
+                day_count=len(parsed.days),
+                shift_labels=parsed.shift_labels,
+                label_suggestions={
+                    label: _suggest_type_for_label(label, types) for label in parsed.shift_labels
+                },
+                people=people_out,
+                warnings=parsed.warnings,
+            )
+        )
+
+    if not sheets:
+        raise HTTPException(status_code=400, detail="；".join(warnings) or "没有可导入的工作表")
+    return ExcelPreviewOut(sheets=sheets, warnings=warnings)
+
+
+@router.post("/excel/apply", response_model=ExcelApplyOut)
+def apply_excel(
+    files: list[UploadFile] = File(...),
+    options: str = Form(
+        ...,
+        description='JSON: {shift_map: {"早": 1}, person_map: {"张三": {"person_id": 3}}, year?, month?}',
+    ),
+    db: Session = Depends(get_db),
+):
+    """按确认的映射把 Excel 排班落库，同人同天覆盖。"""
+    try:
+        opts = json.loads(options)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"options 不是合法 JSON：{exc}") from exc
+
+    shift_map = {
+        str(label): int(type_id)
+        for label, type_id in (opts.get("shift_map") or {}).items()
+        if type_id
+    }
+    person_map: dict[str, dict] = opts.get("person_map") or {}
+    year_override = opts.get("year")
+    month_override = opts.get("month")
+
+    created = updated = skipped = persons_created = 0
+    warnings: list[str] = []
+    person_cache: dict[int, Person] = {}
+    color_seed = 0
+
+    for upload in files:
+        filename = upload.filename or "未命名.xlsx"
+        raw = upload.file.read()
+        try:
+            parsed = parse_xlsx(raw, filename)
+        except ExcelParseError as exc:
+            warnings.append(f"{filename}：{exc}")
+            continue
+
+        year = int(year_override or parsed.year)
+        month = int(month_override or parsed.month)
+
+        for row in parsed.people:
+            decision = person_map.get(row.name) or {}
+            person, was_created = _resolve_excel_person(db, row.name, decision, person_cache)
+            if person is None:
+                skipped += len(row.cells)
+                continue
+            if was_created:
+                persons_created += 1
+            color_seed += 1
+
+            for day, label in row.cells.items():
+                type_id = shift_map.get(label)
+                if not type_id:
+                    skipped += 1
+                    continue
+                shift_type = db.get(ShiftType, type_id)
+                if not shift_type:
+                    skipped += 1
+                    continue
+                try:
+                    work_date = date(year, month, day)
+                except ValueError:
+                    skipped += 1
+                    continue
+
+                existing = db.scalar(
+                    select(Shift).where(
+                        Shift.person_id == person.id, Shift.work_date == work_date
+                    )
+                )
+                if existing:
+                    if existing.shift_type_id == shift_type.id:
+                        skipped += 1
+                        continue
+                    existing.shift_type_id = shift_type.id
+                    updated += 1
+                else:
+                    db.add(
+                        Shift(
+                            person_id=person.id,
+                            shift_type_id=shift_type.id,
+                            work_date=work_date,
+                        )
+                    )
+                    created += 1
+
+    db.commit()
+    return ExcelApplyOut(
+        created=created,
+        updated=updated,
+        skipped=skipped,
+        persons_created=persons_created,
+        warnings=warnings,
+    )
+
+
+def _resolve_excel_person(
+    db: Session, name: str, decision: dict, cache: dict[int, Person]
+) -> tuple[Person | None, bool]:
+    """返回 (人员, 是否本次新建)。"""
+    person_id = decision.get("person_id")
+    if person_id:
+        cached = cache.get(int(person_id))
+        if cached:
+            return cached, False
+        person = db.get(Person, int(person_id))
+        if person:
+            cache[person.id] = person
+        return person, False
+
+    existing = db.scalar(select(Person).where(Person.name == name))
+    if existing:
+        cache.setdefault(existing.id, existing)
+        return existing, False
+
+    person = Person(name=name[:64], color=_pick_color(len(cache) + 3))
+    db.add(person)
+    db.flush()
+    cache[person.id] = person
+    return person, True

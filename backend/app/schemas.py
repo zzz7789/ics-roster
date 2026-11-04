@@ -91,3 +91,41 @@ class ImportApplyOut(BaseModel):
     updated: int = 0
     skipped: int = 0
     warnings: list[str] = []
+
+
+# ----------------------------- Excel 导入 -----------------------------
+
+
+class ExcelPersonOut(BaseModel):
+    name: str
+    person_id: int | None = None
+    counts: dict[str, int] = {}
+    day_count: int = 0
+
+
+class ExcelSheetOut(BaseModel):
+    filename: str
+    sheet_name: str
+    title: str = ""
+    year: int
+    month: int
+    date_matched: bool = True
+    day_count: int = 0
+    shift_labels: list[str] = []
+    # 标签 -> 建议的班次类型 id（如 「早」-> 早班），识别不出则为 None
+    label_suggestions: dict[str, int | None] = {}
+    people: list[ExcelPersonOut] = []
+    warnings: list[str] = []
+
+
+class ExcelPreviewOut(BaseModel):
+    sheets: list[ExcelSheetOut] = []
+    warnings: list[str] = []
+
+
+class ExcelApplyOut(BaseModel):
+    created: int = 0
+    updated: int = 0
+    skipped: int = 0
+    persons_created: int = 0
+    warnings: list[str] = []

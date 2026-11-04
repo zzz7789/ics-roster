@@ -21,3 +21,17 @@ CORS_ORIGINS = [
 
 # 前端构建产物目录，存在时由 FastAPI 直接托管，实现单容器部署
 FRONTEND_DIST = Path(os.getenv("ICS_ROSTER_DIST", BASE_DIR / "static"))
+
+# ----------------------------- 登录与会话 -----------------------------
+
+# 数据目录（SQLite 文件所在目录），会话签名密钥也放在这里
+DATA_DIR = DB_PATH.parent
+SECRET_FILE = Path(os.getenv("ICS_ROSTER_SECRET_FILE", DATA_DIR / "secret.key"))
+
+# 首次启动自动创建的管理员；密码留空则随机生成并打印到日志
+ADMIN_USER = os.getenv("ICS_ROSTER_ADMIN_USER", "admin")
+ADMIN_PASSWORD = os.getenv("ICS_ROSTER_ADMIN_PASSWORD", "")
+
+# 会话有效期（天）
+SESSION_MAX_AGE = int(os.getenv("ICS_ROSTER_SESSION_DAYS", "7")) * 86400
+SESSION_COOKIE = "ics_roster_session"

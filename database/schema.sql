@@ -44,3 +44,15 @@ VALUES
     ('evening', '晚班', '16:00', '00:00', 1, 1, '#7c5cff'),
     ('night',   '夜班', '00:00', '08:00', 0, 1, '#3b4a6b'),
     ('rest',    '休息', '',      '',      0, 0, '#94a3b8');
+
+CREATE TABLE IF NOT EXISTS user (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    username      VARCHAR(64) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    display_name  VARCHAR(64) NOT NULL DEFAULT '',
+    role          VARCHAR(16) NOT NULL DEFAULT 'admin',
+    active        BOOLEAN     NOT NULL DEFAULT 1,
+    created_at    DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_login_at DATETIME
+);
+CREATE INDEX IF NOT EXISTS ix_user_username ON user (username);

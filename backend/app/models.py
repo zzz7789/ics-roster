@@ -66,3 +66,18 @@ class Shift(Base):
 
     person: Mapped[Person] = relationship(back_populates="shifts")
     shift_type: Mapped[ShiftType] = relationship()
+
+
+class User(Base):
+    """登录账号。role 预留：admin 可管理一切，viewer 只读（当前均按 admin 处理）。"""
+
+    __tablename__ = "user"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    display_name: Mapped[str] = mapped_column(String(64), default="")
+    role: Mapped[str] = mapped_column(String(16), default="admin")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

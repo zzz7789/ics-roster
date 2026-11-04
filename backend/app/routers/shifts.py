@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from ..db import get_db
+from ..deps import require_user
 from ..models import Person, Shift, ShiftType
 from ..schemas import (
     PersonIn,
@@ -18,7 +19,7 @@ from ..schemas import (
     ShiftTypeOut,
 )
 
-router = APIRouter(prefix="/api", tags=["roster"])
+router = APIRouter(prefix="/api", tags=["roster"], dependencies=[Depends(require_user)])
 
 
 # ----------------------------- 人员 -----------------------------

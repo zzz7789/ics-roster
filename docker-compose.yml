@@ -11,6 +11,9 @@ services:
       ICS_ROSTER_TEAM_TOKEN: ${ICS_ROSTER_TEAM_TOKEN:-change-me-team-token}
       # 同域部署时无需跨域，留空即可
       ICS_ROSTER_CORS: ${ICS_ROSTER_CORS:-}
+      ICS_ROSTER_ADMIN_USER: ${ICS_ROSTER_ADMIN_USER:-admin}
+      ICS_ROSTER_ADMIN_PASSWORD: ${ICS_ROSTER_ADMIN_PASSWORD:-}
+      ICS_ROSTER_SESSION_DAYS: ${ICS_ROSTER_SESSION_DAYS:-7}
       TZ: Asia/Shanghai
     volumes:
       - ./data:/data

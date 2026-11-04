@@ -8,14 +8,16 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import CORS_ORIGINS, FRONTEND_DIST
 from .db import init_db
+from .routers import auth as auth_router
 from .routers import calendar, imports, shifts
-from .seed import seed_defaults
+from .seed import ensure_admin, seed_defaults
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
     seed_defaults()
+    ensure_admin()
     yield
 
 
@@ -29,11 +31,12 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(auth_router.router)
 app.include_router(shifts.router)
 app.include_router(calendar.router)
 app.include_router(imports.router)
