@@ -294,10 +294,15 @@ table.roster thead th.weekend {
   background: #fff5f5;
 }
 
+/* 今天：表头实心主色，整列淡蓝底 + 左右描边，一眼能找到 */
 table.roster thead th.today {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--accent);
+  color: #fff;
   font-weight: 700;
+}
+
+table.roster thead th.today .day-dow {
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .day-num {
@@ -343,7 +348,17 @@ td.weekend {
 }
 
 td.today {
-  box-shadow: inset 0 0 0 1px #bfdbfe;
+  background: #eef5ff;
+  box-shadow: inset 1px 0 0 #c7dbff, inset -1px 0 0 #c7dbff;
+}
+
+td.today:hover {
+  background: #dfebff;
+}
+
+/* 今天逢周末时以「今天」为准 */
+td.today.weekend {
+  background: #eef5ff;
 }
 
 .chip {
